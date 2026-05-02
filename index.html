@@ -1,593 +1,1409 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>選択クイズをつくる</title>
-    <style>
-        :root {
-            --primary: #4CAF50;
-            --danger: #F44336;
-            --bg: #f9fafb;
-            --text: #333;
-            --nav-color: rgba(0, 0, 0, 0.15);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>クイズ</title>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    font-family: 'BIZ UDPGothic', sans-serif;
+    background: #fafaf7;
+    color: #333;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body { position: fixed; width: 100%; height: 100%; }
 
-        /* UD対応とiPad最適化 */
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            font-family: "BIZ UDゴシック", "BIZ UDGothic", sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            overflow: hidden; /* 全体のスクロールを防止 */
-            -webkit-touch-callout: none;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-        }
+  #quizMode {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
 
-        /* 編集モード時の入力欄は選択可能に */
-        input, textarea {
-            user-select: auto;
-            -webkit-user-select: auto;
-        }
+  .empty-message {
+    margin: auto;
+    text-align: center;
+    color: #888;
+    font-size: 1.2rem;
+    padding: 2rem;
+  }
 
-        /* ルビの表示最適化 */
-        ruby { ruby-align: center; }
-        rt { font-size: 0.5em; color: #555; }
+  .quiz-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem 4rem 4rem 4rem;
+    position: relative;
+  }
 
-        #app { width: 100%; height: 100%; }
+  .quiz-container.no-choices {
+    align-items: center;
+    justify-content: center;
+  }
 
-        /* ======== プレイモード ======== */
-        .play-container {
-            position: relative;
-            width: 100%; height: 100%;
-            display: flex; flex-direction: column;
-        }
-        
-        /* ナビゲーション（左右） */
-        .nav-btn {
-            position: absolute;
-            top: 0; bottom: 0; width: 80px;
-            background: transparent; border: none;
-            color: var(--nav-color); font-size: 3rem;
-            cursor: pointer; z-index: 10;
-            transition: color 0.2s;
-        }
-        .nav-btn:active { color: rgba(0,0,0,0.4); background: rgba(0,0,0,0.05); }
-        .nav-left { left: 0; }
-        .nav-right { right: 0; }
+  .quiz-container.no-choices .question-area {
+    flex: none;
+    text-align: center;
+    max-width: 90%;
+    max-height: 90%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+  }
 
-        /* 設定（歯車） */
-        .setting-btn {
-            position: absolute;
-            bottom: 10px; left: 50%; transform: translateX(-50%);
-            background: transparent; border: none;
-            color: var(--nav-color); font-size: 1.5rem;
-            cursor: pointer; z-index: 10; padding: 10px;
-            opacity: 0.2;
-        }
+  .quiz-container.no-choices .question-text {
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.5;
+  }
 
-        /* メイン問題エリア */
-        .question-area {
-            flex: 1; padding: 40px 100px;
-            display: flex; flex-direction: column; align-items: center;
-            overflow-y: auto;
-        }
-        .q-text { 
-            font-size: 2.2rem; font-weight: bold; 
-            margin-bottom: 20px; text-align: center; line-height: 1.4;
-        }
-        .q-image img { 
-            max-width: 100%; max-height: 35vh; 
-            object-fit: contain; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
+  .quiz-container.no-choices .question-image {
+    max-width: 80vw;
+    max-height: 60vh;
+    object-fit: contain;
+  }
 
-        /* 選択肢エリア */
-        .options-area {
-            width: 100%; max-width: 800px; padding: 20px;
-            display: grid; gap: 20px;
-            margin-top: auto; margin-bottom: 50px;
-        }
-        .options-2 { grid-template-columns: 1fr 1fr; }
-        .options-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .question-area {
+    flex: 0 0 auto;
+    text-align: center;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    max-height: 50%;
+  }
 
-        .option-btn {
-            background: white; border: 3px solid #ddd; border-radius: 15px;
-            padding: 20px; font-size: 1.8rem; font-weight: bold; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            font-family: inherit; color: var(--text);
-            transition: transform 0.1s, background 0.1s;
-        }
-        .option-btn:active { transform: scale(0.95); background: #f0f0f0; }
-        .option-btn img { max-width: 100%; max-height: 150px; margin-top: 10px; border-radius: 8px; }
+  .question-text {
+    font-size: clamp(1.1rem, 2.5vw, 1.8rem);
+    font-weight: 700;
+    line-height: 1.5;
+  }
 
-        /* 正解アニメーション（黄緑の〇） */
-        .correct-circle {
-            position: fixed;
-            width: 120px; height: 120px;
-            border: 20px solid #8BC34A; /* 黄緑色 */
-            border-radius: 50%;
-            pointer-events: none; z-index: 9999;
-            animation: floatUp 1s ease-out forwards;
-        }
-        @keyframes floatUp {
-            0% { transform: scale(0.5); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.9; }
-            100% { transform: scale(1.5); opacity: 0; }
-        }
+  .question-image {
+    max-width: 70vw;
+    max-height: 35vh;
+    object-fit: contain;
+    border-radius: 8px;
+  }
 
+  .choices-area {
+    flex: 1 1 auto;
+    display: grid;
+    gap: 1rem;
+    padding: 1rem 0;
+    min-height: 0;
+  }
 
-        /* ======== 編集モード ======== */
-        .edit-container {
-            width: 100%; height: 100%; overflow-y: auto; background: white;
-            padding: 20px; box-sizing: border-box; color: #333;
-        }
-        .edit-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding-bottom: 20px; border-bottom: 2px solid #eee; margin-bottom: 20px;
-            position: sticky; top: 0; background: white; z-index: 100;
-        }
-        .edit-list { display: flex; flex-direction: column; gap: 20px; }
-        
-        .edit-card {
-            background: #fff; border: 1px solid #ccc; border-radius: 8px;
-            padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .card-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;
-        }
-        .card-header h3 { margin: 0; }
-        
-        .edit-label { font-weight: bold; margin-top: 10px; display: block; font-size: 0.9rem;}
-        .edit-input {
-            width: 100%; padding: 10px; margin: 5px 0 15px 0;
-            border: 1px solid #aaa; border-radius: 4px;
-            font-family: inherit; font-size: 1rem; box-sizing: border-box;
-        }
-        textarea.edit-input { resize: vertical; min-height: 80px; }
-        
-        .file-wrapper { margin-bottom: 15px; }
-        .preview-img { max-width: 200px; max-height: 200px; display: block; margin-top: 10px; border: 1px solid #ddd; }
-        .preview-img-small { max-width: 100px; max-height: 100px; display: block; margin-top: 5px; border: 1px solid #ddd; }
-        
-        .option-edit-box {
-            border: 1px dashed #bbb; padding: 15px; margin-bottom: 10px; border-radius: 5px; background: #fafafa;
-        }
-        .correct-option { border: 2px solid var(--primary); background: #e8f5e9; }
-        
-        /* 汎用ボタン */
-        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem; font-family: inherit; background: #e0e0e0; color: #333;}
-        .btn:hover { opacity: 0.9; }
-        .btn.primary { background: var(--primary); color: white; font-weight: bold; }
-        .btn.danger { background: var(--danger); color: white; }
-        .btn-small { padding: 5px 10px; font-size: 0.8rem; }
-    </style>
+  .choices-area.two-choices {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  .choices-area.four-choices {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .choice-button {
+    background: #fff;
+    border: 3px solid #ddd;
+    border-radius: 16px;
+    padding: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: transform 0.1s, border-color 0.2s, background 0.2s;
+    font-family: inherit;
+    font-size: clamp(1rem, 2.5vw, 1.6rem);
+    font-weight: 700;
+    color: #333;
+    position: relative;
+    min-height: 0;
+  }
+
+  .choice-button:active {
+    transform: scale(0.97);
+  }
+
+  .choice-button:hover {
+    border-color: #aaa;
+  }
+
+  .choice-button.wrong {
+    background: #ffe5e5;
+    border-color: #f88;
+    animation: shake 0.4s;
+  }
+
+  .choice-button.correct {
+    background: #e5ffd5;
+    border-color: #8c5;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+
+  .choice-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 3rem;
+    color: rgba(0,0,0,0.15);
+    cursor: pointer;
+    user-select: none;
+    padding: 1rem 0.5rem;
+    transition: color 0.2s;
+    z-index: 10;
+  }
+
+  .nav-arrow:hover {
+    color: rgba(0,0,0,0.4);
+  }
+
+  .nav-arrow.left { left: 0.5rem; }
+  .nav-arrow.right { right: 0.5rem; }
+
+  .nav-arrow.disabled {
+    color: rgba(0,0,0,0.05);
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .gear-icon {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.5rem;
+    color: rgba(0,0,0,0.2);
+    cursor: pointer;
+    z-index: 10;
+    padding: 0.5rem;
+    transition: color 0.2s;
+  }
+
+  .gear-icon:hover {
+    color: rgba(0,0,0,0.5);
+  }
+
+  .question-counter {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.9rem;
+    color: rgba(0,0,0,0.3);
+    z-index: 10;
+  }
+
+  .bubble {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(140, 200, 80, 0.7);
+    pointer-events: none;
+    animation: floatUp 2s ease-out forwards;
+    z-index: 100;
+  }
+
+  @keyframes floatUp {
+    0% {
+      transform: translate(0, 0) scale(0.5);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--dx), -200px) scale(1.2);
+      opacity: 0;
+    }
+  }
+
+  #editMode {
+    display: none;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    background: #f5f5f0;
+    padding: 1.5rem;
+  }
+
+  #editMode.active { display: block; }
+
+  .edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .edit-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .edit-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .shuffle-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    background: #eee;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    user-select: none;
+    border: 2px solid transparent;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .shuffle-toggle.active {
+    background: #e3f0ff;
+    border-color: #4a90e2;
+    color: #2a6bb8;
+  }
+
+  .shuffle-toggle input { margin: 0; }
+
+  .btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary { background: #4a90e2; color: white; }
+  .btn-success { background: #5cb85c; color: white; }
+  .btn-secondary { background: #888; color: white; }
+  .btn-danger { background: #d9534f; color: white; }
+  .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+
+  .question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .question-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+  }
+
+  .question-card:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+
+  .question-card-number {
+    font-weight: 700;
+    color: #888;
+    min-width: 2rem;
+  }
+
+  .question-card-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .question-card-meta {
+    font-size: 0.8rem;
+    color: #888;
+    margin-right: 0.5rem;
+  }
+
+  .question-card-actions {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .icon-btn {
+    background: #eee;
+    border: none;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-btn:hover { background: #ddd; }
+
+  .edit-modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  .edit-modal.active { display: block; }
+
+  .edit-modal-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 700px;
+    margin: 1rem auto;
+    padding: 1.5rem;
+  }
+
+  .edit-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+  }
+
+  .edit-modal-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.2rem;
+  }
+
+  .form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .form-group input[type="text"],
+  .form-group textarea {
+    width: 100%;
+    padding: 0.6rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+  }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+  }
+
+  .image-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .image-preview img {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+  }
+
+  .file-input-wrapper {
+    display: inline-block;
+  }
+
+  .file-input-wrapper input[type="file"] {
+    display: none;
+  }
+
+  .file-label {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: #eee;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .file-label:hover { background: #ddd; }
+
+  .radio-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-weight: normal;
+    cursor: pointer;
+  }
+
+  .choices-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .choice-edit-card {
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    padding: 0.8rem;
+    background: #fafafa;
+  }
+
+  .choice-edit-card.is-correct {
+    border-color: #5cb85c;
+    background: #f0fff0;
+  }
+
+  .choice-edit-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .choice-edit-header label {
+    margin-bottom: 0;
+    font-weight: 700;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 600px) {
+    .quiz-container {
+      padding: 1rem 3rem 3rem 3rem;
+    }
+    .nav-arrow {
+      font-size: 2.5rem;
+    }
+  }
+</style>
 </head>
 <body>
-    <!-- 保存時にこの中身が更新されます -->
-    <script id="app-data" type="application/json">
-        [
-            {
-                "text": "この<ruby>動物<rt>どうぶつ</rt></ruby>はなに？",
-                "image": "",
-                "type": "2",
-                "options": [
-                    { "text": "いぬ", "image": "" },
-                    { "text": "ねこ", "image": "" }
-                ],
-                "answer": 0
-            }
-        ]
-    </script>
 
-    <div id="app"></div>
+<div id="quizMode">
+  <div class="question-counter" id="questionCounter"></div>
+  <div id="quizContent"></div>
+  <div class="nav-arrow left" id="prevArrow">◁</div>
+  <div class="nav-arrow right" id="nextArrow">▷</div>
+  <div class="gear-icon" id="gearIcon">⚙</div>
+</div>
 
-    <script>
-        // --- 状態管理 ---
-        let questions = [];
-        let currentIndex = 0;
-        let isEditMode = false;
-        let audioCtx;
+<div id="editMode">
+  <div class="edit-header">
+    <h1>編集モード</h1>
+    <div class="edit-buttons">
+      <label class="shuffle-toggle" id="shuffleToggle">
+        <input type="checkbox" id="shuffleCheckbox">
+        🔀 シャッフル
+      </label>
+      <button class="btn btn-secondary" id="backToQuizBtn">出題に戻る</button>
+      <button class="btn btn-success" id="saveHtmlBtn">HTMLとして保存</button>
+    </div>
+  </div>
 
-        // --- 初期化 ---
-        window.onload = () => {
-            const dataStr = document.getElementById('app-data').textContent;
-            try {
-                questions = JSON.parse(dataStr);
-            } catch(e) {
-                questions = [];
-            }
-            
-            // データが空なら最初から編集モード
-            if (questions.length === 0) {
-                isEditMode = true;
-            }
-            render();
-        };
+  <div class="question-list" id="questionList"></div>
 
-        // --- 音声生成 (Web Audio API) ---
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+  <button class="btn btn-primary" id="addQuestionBtn">＋ 問題を追加</button>
+</div>
+
+<div class="edit-modal" id="editModal">
+  <div class="edit-modal-content">
+    <div class="edit-modal-header">
+      <h2 id="editModalTitle">問題を編集</h2>
+      <button class="btn btn-secondary btn-sm" id="closeModalBtn">閉じる</button>
+    </div>
+
+    <div class="form-group">
+      <label>問題文</label>
+      <textarea id="editQuestionText" placeholder="問題文を入力"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>問題画像（任意）</label>
+      <div class="image-preview" id="editQuestionImagePreview"></div>
+    </div>
+
+    <div class="form-group">
+      <label>選択肢の種類</label>
+      <div class="radio-group">
+        <label><input type="radio" name="choiceType" value="none"> なし</label>
+        <label><input type="radio" name="choiceType" value="2"> 2択</label>
+        <label><input type="radio" name="choiceType" value="4"> 4択</label>
+      </div>
+    </div>
+
+    <div class="form-group" id="choicesEditWrapper" style="display:none;">
+      <label>選択肢（◯のラジオで正解を指定）</label>
+      <div class="choices-edit" id="choicesEdit"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="deleteQuestionBtn">この問題を削除</button>
+      <button class="btn btn-primary" id="saveQuestionBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<script id="quizConfig" type="application/json">{"questions":[],"shuffle":false}</script>
+
+<script>
+(function() {
+  'use strict';
+
+  let questions = [];
+  let displayOrder = [];
+  let currentIndex = 0;
+  let shuffleEnabled = false;
+  let editingIndex = -1;
+  let isAnswering = false;
+
+  // 設定の読み込み
+  try {
+    const dataEl = document.getElementById('quizConfig');
+    if (dataEl) {
+      const raw = dataEl.textContent.trim();
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.questions)) {
+          questions = parsed.questions;
+        }
+        if (parsed && typeof parsed.shuffle === 'boolean') {
+          shuffleEnabled = parsed.shuffle;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('保存データの読み込みに失敗しました', e);
+  }
+
+  const quizMode = document.getElementById('quizMode');
+  const editMode = document.getElementById('editMode');
+  const editModal = document.getElementById('editModal');
+  const quizContent = document.getElementById('quizContent');
+  const questionCounter = document.getElementById('questionCounter');
+  const prevArrow = document.getElementById('prevArrow');
+  const nextArrow = document.getElementById('nextArrow');
+  const gearIcon = document.getElementById('gearIcon');
+  const shuffleCheckbox = document.getElementById('shuffleCheckbox');
+  const shuffleToggle = document.getElementById('shuffleToggle');
+
+  shuffleCheckbox.checked = shuffleEnabled;
+  shuffleToggle.classList.toggle('active', shuffleEnabled);
+
+  function rebuildDisplayOrder() {
+    displayOrder = questions.map(function(_, i) { return i; });
+    if (shuffleEnabled) {
+      for (let i = displayOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = displayOrder[i];
+        displayOrder[i] = displayOrder[j];
+        displayOrder[j] = tmp;
+      }
+    }
+    if (currentIndex >= displayOrder.length) currentIndex = 0;
+  }
+
+  function getCurrentQuestion() {
+    if (displayOrder.length === 0) return null;
+    return questions[displayOrder[currentIndex]];
+  }
+
+  if (questions.length === 0) {
+    showEditMode();
+  } else {
+    showQuizMode();
+  }
+
+  // ===== 音声 =====
+  let audioCtx = null;
+  function getAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function playCorrectSound() {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    [880, 1318.5].forEach(function(freq, i) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const start = now + i * 0.18;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+      osc.start(start);
+      osc.stop(start + 0.45);
+    });
+  }
+
+  function playWrongSound() {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    for (let i = 0; i < 2; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 180;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const start = now + i * 0.32;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.15, start + 0.02);
+      gain.gain.linearRampToValueAtTime(0.15, start + 0.25);
+      gain.gain.linearRampToValueAtTime(0, start + 0.28);
+      osc.start(start);
+      osc.stop(start + 0.3);
+    }
+  }
+
+  // ===== 画像処理 =====
+  function processImageFile(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const maxSize = 800;
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+          if (w >= h) {
+            h = Math.round(h * (maxSize / w));
+            w = maxSize;
+          } else {
+            w = Math.round(w * (maxSize / h));
+            h = maxSize;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        callback(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ===== モード切り替え =====
+  function showQuizMode() {
+    quizMode.style.display = 'flex';
+    editMode.classList.remove('active');
+    editModal.classList.remove('active');
+    rebuildDisplayOrder();
+    renderQuestion();
+  }
+
+  function showEditMode() {
+    quizMode.style.display = 'none';
+    editMode.classList.add('active');
+    editModal.classList.remove('active');
+    renderQuestionList();
+  }
+
+  // ===== 出題モード描画 =====
+  function renderQuestion() {
+    quizContent.innerHTML = '';
+    isAnswering = false;
+
+    if (questions.length === 0 || displayOrder.length === 0) {
+      quizContent.innerHTML = '<div class="empty-message">問題がありません。<br>⚙から追加してください</div>';
+      questionCounter.textContent = '';
+      updateNavArrows();
+      return;
+    }
+
+    const q = getCurrentQuestion();
+    questionCounter.textContent = (currentIndex + 1) + ' / ' + displayOrder.length;
+
+    const container = document.createElement('div');
+    container.className = 'quiz-container';
+
+    const choiceType = q.choiceType || 'none';
+    if (choiceType === 'none') {
+      container.classList.add('no-choices');
+    }
+
+    const qArea = document.createElement('div');
+    qArea.className = 'question-area';
+
+    if (q.text) {
+      const txt = document.createElement('div');
+      txt.className = 'question-text';
+      txt.textContent = q.text;
+      qArea.appendChild(txt);
+    }
+
+    if (q.image) {
+      const img = document.createElement('img');
+      img.className = 'question-image';
+      img.src = q.image;
+      qArea.appendChild(img);
+    }
+
+    container.appendChild(qArea);
+
+    if (choiceType === '2' || choiceType === '4') {
+      const choicesArea = document.createElement('div');
+      choicesArea.className = 'choices-area ' + (choiceType === '2' ? 'two-choices' : 'four-choices');
+
+      const choices = q.choices || [];
+      const numChoices = parseInt(choiceType, 10);
+
+      for (let i = 0; i < numChoices; i++) {
+        const c = choices[i] || { text: '', image: null };
+        const btn = document.createElement('button');
+        btn.className = 'choice-button';
+        btn.dataset.index = i;
+
+        if (c.image) {
+          const img = document.createElement('img');
+          img.className = 'choice-image';
+          img.src = c.image;
+          btn.appendChild(img);
+        } else {
+          btn.textContent = c.text || '';
         }
 
-        function playCorrectSound() {
-            initAudio();
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            osc.type = 'sine';
-            const now = audioCtx.currentTime;
-            
-            // ピ・ポン（B5 -> E6）
-            osc.frequency.setValueAtTime(987.77, now);
-            osc.frequency.setValueAtTime(1318.51, now + 0.15);
-            
-            gainNode.gain.setValueAtTime(0, now);
-            gainNode.gain.linearRampToValueAtTime(0.5, now + 0.02);
-            gainNode.gain.setValueAtTime(0.5, now + 0.15);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
-            
-            osc.start(now);
-            osc.stop(now + 0.6);
+        btn.addEventListener('click', function(ev) {
+          handleChoiceClick(ev, i);
+        });
+
+        choicesArea.appendChild(btn);
+      }
+
+      container.appendChild(choicesArea);
+    }
+
+    quizContent.appendChild(container);
+    updateNavArrows();
+  }
+
+  function updateNavArrows() {
+    if (displayOrder.length === 0) {
+      prevArrow.classList.add('disabled');
+      nextArrow.classList.add('disabled');
+      return;
+    }
+    prevArrow.classList.toggle('disabled', currentIndex === 0);
+    nextArrow.classList.toggle('disabled', currentIndex >= displayOrder.length - 1);
+  }
+
+  function handleChoiceClick(ev, choiceIndex) {
+    if (isAnswering) return;
+    const q = getCurrentQuestion();
+    if (!q) return;
+    const correctIndex = (typeof q.correct === 'number') ? q.correct : 0;
+
+    if (choiceIndex === correctIndex) {
+      isAnswering = true;
+      const btn = ev.currentTarget;
+      btn.classList.add('correct');
+      playCorrectSound();
+      spawnBubbles(btn);
+      setTimeout(function() {
+        if (currentIndex < displayOrder.length - 1) {
+          currentIndex++;
+          renderQuestion();
+        } else {
+          isAnswering = false;
         }
+      }, 1500);
+    } else {
+      const btn = ev.currentTarget;
+      btn.classList.add('wrong');
+      playWrongSound();
+      setTimeout(function() {
+        btn.classList.remove('wrong');
+      }, 600);
+    }
+  }
 
-        function playIncorrectSound() {
-            initAudio();
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            osc.type = 'sawtooth';
-            const now = audioCtx.currentTime;
-            
-            // ブッ・ブー
-            osc.frequency.setValueAtTime(120, now);
-            osc.frequency.setValueAtTime(110, now + 0.1);
-            
-            gainNode.gain.setValueAtTime(0, now);
-            gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-            
-            osc.start(now);
-            osc.stop(now + 0.4);
+  function spawnBubbles(targetEl) {
+    const rect = targetEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      const size = 30 + Math.random() * 30;
+      bubble.style.width = size + 'px';
+      bubble.style.height = size + 'px';
+      const offsetX = (Math.random() - 0.5) * rect.width * 0.7;
+      const offsetY = (Math.random() - 0.5) * rect.height * 0.5;
+      bubble.style.left = (cx + offsetX - size / 2) + 'px';
+      bubble.style.top = (cy + offsetY - size / 2) + 'px';
+      const dx = (Math.random() - 0.5) * 200;
+      bubble.style.setProperty('--dx', dx + 'px');
+      bubble.style.animationDelay = (Math.random() * 0.3) + 's';
+      document.body.appendChild(bubble);
+      setTimeout(function() {
+        if (bubble.parentNode) bubble.parentNode.removeChild(bubble);
+      }, 2500);
+    }
+  }
+
+  // ===== ナビゲーション =====
+  prevArrow.addEventListener('click', function() {
+    if (currentIndex > 0) {
+      currentIndex--;
+      renderQuestion();
+    }
+  });
+
+  nextArrow.addEventListener('click', function() {
+    if (currentIndex < displayOrder.length - 1) {
+      currentIndex++;
+      renderQuestion();
+    }
+  });
+
+  gearIcon.addEventListener('click', function() {
+    showEditMode();
+  });
+
+  shuffleCheckbox.addEventListener('change', function() {
+    shuffleEnabled = shuffleCheckbox.checked;
+    shuffleToggle.classList.toggle('active', shuffleEnabled);
+  });
+
+  // ===== 編集モード描画 =====
+  function renderQuestionList() {
+    const listEl = document.getElementById('questionList');
+    listEl.innerHTML = '';
+
+    if (questions.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.textAlign = 'center';
+      empty.style.color = '#888';
+      empty.style.padding = '2rem';
+      empty.textContent = 'まだ問題がありません。下のボタンから追加してください。';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    questions.forEach(function(q, idx) {
+      const card = document.createElement('div');
+      card.className = 'question-card';
+
+      const num = document.createElement('div');
+      num.className = 'question-card-number';
+      num.textContent = (idx + 1) + '.';
+
+      const text = document.createElement('div');
+      text.className = 'question-card-text';
+      text.textContent = q.text || '(問題文なし)';
+
+      const meta = document.createElement('div');
+      meta.className = 'question-card-meta';
+      const ct = q.choiceType || 'none';
+      meta.textContent = ct === 'none' ? '選択肢なし' : ct + '択';
+
+      const actions = document.createElement('div');
+      actions.className = 'question-card-actions';
+
+      const upBtn = document.createElement('button');
+      upBtn.className = 'icon-btn';
+      upBtn.textContent = '▲';
+      upBtn.title = '上に移動';
+      upBtn.disabled = (idx === 0);
+      upBtn.style.opacity = (idx === 0) ? '0.3' : '1';
+      upBtn.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        if (idx > 0) {
+          const tmp = questions[idx - 1];
+          questions[idx - 1] = questions[idx];
+          questions[idx] = tmp;
+          renderQuestionList();
         }
+      });
 
-        // --- 画面描画ロジック ---
-        function render() {
-            const app = document.getElementById('app');
-            app.innerHTML = '';
-            
-            if (isEditMode) {
-                app.appendChild(createEditView());
-            } else {
-                app.appendChild(createPlayView());
-            }
+      const downBtn = document.createElement('button');
+      downBtn.className = 'icon-btn';
+      downBtn.textContent = '▼';
+      downBtn.title = '下に移動';
+      downBtn.disabled = (idx === questions.length - 1);
+      downBtn.style.opacity = (idx === questions.length - 1) ? '0.3' : '1';
+      downBtn.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        if (idx < questions.length - 1) {
+          const tmp = questions[idx];
+          questions[idx] = questions[idx + 1];
+          questions[idx + 1] = tmp;
+          renderQuestionList();
         }
+      });
 
-        function toggleMode() {
-            isEditMode = !isEditMode;
-            currentIndex = 0;
-            render();
+      const delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn';
+      delBtn.textContent = '🗑';
+      delBtn.title = '削除';
+      delBtn.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        if (confirm('この問題を削除しますか？')) {
+          questions.splice(idx, 1);
+          renderQuestionList();
         }
+      });
 
-        // ======== プレイモード ========
-        function createPlayView() {
-            const container = document.createElement('div');
-            container.className = 'play-container';
+      actions.appendChild(upBtn);
+      actions.appendChild(downBtn);
+      actions.appendChild(delBtn);
 
-            if (questions.length === 0) {
-                container.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
-                        <p style="font-size: 1.5rem;">問題がありません。</p>
-                        <button class="btn primary" onclick="toggleMode()">編集モードを開く</button>
-                    </div>
-                `;
-                return container;
-            }
+      card.appendChild(num);
+      card.appendChild(text);
+      card.appendChild(meta);
+      card.appendChild(actions);
 
-            const q = questions[currentIndex];
+      card.addEventListener('click', function() {
+        openEditModal(idx);
+      });
 
-            let html = `
-                ${currentIndex > 0 ? `<button class="nav-btn nav-left" onclick="prevQuestion()">◁</button>` : ''}
-                ${currentIndex < questions.length - 1 ? `<button class="nav-btn nav-right" onclick="nextQuestion()">▷</button>` : ''}
-                
-                <button class="setting-btn" onclick="toggleMode()">⚙️</button>
-                
-                <div class="question-area">
-                    <div class="q-text">${q.text}</div>
-                    ${q.image ? `<div class="q-image"><img src="${q.image}"></div>` : ''}
-            `;
+      listEl.appendChild(card);
+    });
+  }
 
-            if (q.type !== '0') {
-                const optCount = parseInt(q.type);
-                html += `<div class="options-area options-${q.type}">`;
-                for (let i = 0; i < optCount; i++) {
-                    const opt = q.options[i];
-                    if (opt) {
-                        html += `
-                            <button class="option-btn" onclick="checkAnswer(${i}, event)">
-                                ${opt.image ? `<img src="${opt.image}">` : ''}
-                                ${opt.text ? `<div>${opt.text}</div>` : ''}
-                            </button>
-                        `;
-                    }
-                }
-                html += `</div>`;
-            }
+  // ===== 編集モーダル =====
+  function openEditModal(idx) {
+    editingIndex = idx;
+    const q = questions[idx];
 
-            html += `</div>`;
-            container.innerHTML = html;
-            return container;
+    document.getElementById('editModalTitle').textContent = '問題 ' + (idx + 1) + ' を編集';
+    document.getElementById('editQuestionText').value = q.text || '';
+
+    renderQuestionImagePreview(q.image);
+
+    const radios = document.getElementsByName('choiceType');
+    radios.forEach(function(r) {
+      r.checked = (r.value === (q.choiceType || 'none'));
+    });
+
+    renderChoicesEdit();
+
+    editModal.classList.add('active');
+  }
+
+  function renderQuestionImagePreview(imgData) {
+    const wrapper = document.getElementById('editQuestionImagePreview');
+    wrapper.innerHTML = '';
+
+    if (imgData) {
+      const img = document.createElement('img');
+      img.src = imgData;
+      wrapper.appendChild(img);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-danger btn-sm';
+      delBtn.textContent = '削除';
+      delBtn.addEventListener('click', function() {
+        questions[editingIndex].image = null;
+        renderQuestionImagePreview(null);
+      });
+      wrapper.appendChild(delBtn);
+    } else {
+      const fileWrap = document.createElement('div');
+      fileWrap.className = 'file-input-wrapper';
+      const lbl = document.createElement('label');
+      lbl.className = 'file-label';
+      lbl.textContent = '画像を選ぶ';
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', function(ev) {
+        const f = ev.target.files[0];
+        if (f) {
+          processImageFile(f, function(dataUrl) {
+            questions[editingIndex].image = dataUrl;
+            renderQuestionImagePreview(dataUrl);
+          });
         }
+      });
+      lbl.appendChild(input);
+      fileWrap.appendChild(lbl);
+      wrapper.appendChild(fileWrap);
+    }
+  }
 
-        function nextQuestion() {
-            if (currentIndex < questions.length - 1) {
-                currentIndex++;
-                render();
-            }
+  function getCurrentChoiceType() {
+    const radios = document.getElementsByName('choiceType');
+    for (let i = 0; i < radios.length; i++) {
+      if (radios[i].checked) return radios[i].value;
+    }
+    return 'none';
+  }
+
+  function renderChoicesEdit() {
+    const wrapper = document.getElementById('choicesEditWrapper');
+    const container = document.getElementById('choicesEdit');
+    container.innerHTML = '';
+
+    const ct = getCurrentChoiceType();
+    if (ct === 'none') {
+      wrapper.style.display = 'none';
+      return;
+    }
+    wrapper.style.display = 'block';
+
+    const num = parseInt(ct, 10);
+    const q = questions[editingIndex];
+    if (!q.choices) q.choices = [];
+    while (q.choices.length < num) q.choices.push({ text: '', image: null });
+    if (typeof q.correct !== 'number' || q.correct >= num) q.correct = 0;
+
+    for (let i = 0; i < num; i++) {
+      (function(i) {
+        const c = q.choices[i];
+        const card = document.createElement('div');
+        card.className = 'choice-edit-card';
+        if (q.correct === i) card.classList.add('is-correct');
+
+        const header = document.createElement('div');
+        header.className = 'choice-edit-header';
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'correctChoice';
+        radio.value = i;
+        radio.checked = (q.correct === i);
+        radio.id = 'correctRadio' + i;
+        radio.addEventListener('change', function() {
+          q.correct = i;
+          renderChoicesEdit();
+        });
+
+        const label = document.createElement('label');
+        label.htmlFor = 'correctRadio' + i;
+        label.textContent = '選択肢 ' + (i + 1) + (q.correct === i ? '（正解）' : '');
+
+        header.appendChild(radio);
+        header.appendChild(label);
+        card.appendChild(header);
+
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.placeholder = '選択肢のテキスト';
+        textInput.value = c.text || '';
+        textInput.style.width = '100%';
+        textInput.style.padding = '0.5rem';
+        textInput.style.border = '2px solid #ddd';
+        textInput.style.borderRadius = '6px';
+        textInput.style.fontFamily = 'inherit';
+        textInput.style.marginBottom = '0.5rem';
+        textInput.addEventListener('input', function() {
+          c.text = textInput.value;
+        });
+        card.appendChild(textInput);
+
+        const imgWrapper = document.createElement('div');
+        imgWrapper.className = 'image-preview';
+        renderChoiceImagePreview(imgWrapper, i);
+        card.appendChild(imgWrapper);
+
+        container.appendChild(card);
+      })(i);
+    }
+  }
+
+  function renderChoiceImagePreview(wrapper, choiceIndex) {
+    wrapper.innerHTML = '';
+    const c = questions[editingIndex].choices[choiceIndex];
+
+    if (c.image) {
+      const img = document.createElement('img');
+      img.src = c.image;
+      wrapper.appendChild(img);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-danger btn-sm';
+      delBtn.textContent = '画像削除';
+      delBtn.addEventListener('click', function() {
+        c.image = null;
+        renderChoiceImagePreview(wrapper, choiceIndex);
+      });
+      wrapper.appendChild(delBtn);
+    } else {
+      const fileWrap = document.createElement('div');
+      fileWrap.className = 'file-input-wrapper';
+      const lbl = document.createElement('label');
+      lbl.className = 'file-label';
+      lbl.textContent = '画像を選ぶ（任意）';
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', function(ev) {
+        const f = ev.target.files[0];
+        if (f) {
+          processImageFile(f, function(dataUrl) {
+            c.image = dataUrl;
+            renderChoiceImagePreview(wrapper, choiceIndex);
+          });
         }
+      });
+      lbl.appendChild(input);
+      fileWrap.appendChild(lbl);
+      wrapper.appendChild(fileWrap);
+    }
+  }
 
-        function prevQuestion() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                render();
-            }
-        }
+  document.getElementsByName('choiceType').forEach(function(r) {
+    r.addEventListener('change', renderChoicesEdit);
+  });
 
-        function checkAnswer(selectedIdx, event) {
-            initAudio(); // iOS Safari対策でユーザーアクション時にAudioContextを再開
-            const q = questions[currentIndex];
-            if (selectedIdx === q.answer) {
-                playCorrectSound();
-                showCorrectAnimation(event);
-            } else {
-                playIncorrectSound();
-            }
-        }
+  document.getElementById('editQuestionText').addEventListener('input', function(ev) {
+    if (editingIndex >= 0) {
+      questions[editingIndex].text = ev.target.value;
+    }
+  });
 
-        function showCorrectAnimation(event) {
-            // タップ・クリックされた要素の中央座標を取得
-            const rect = event.currentTarget.getBoundingClientRect();
-            const x = rect.left + rect.width / 2;
-            const y = rect.top + rect.height / 2;
+  document.getElementById('closeModalBtn').addEventListener('click', function() {
+    if (editingIndex >= 0) {
+      questions[editingIndex].choiceType = getCurrentChoiceType();
+    }
+    editModal.classList.remove('active');
+    renderQuestionList();
+  });
 
-            const circle = document.createElement('div');
-            circle.className = 'correct-circle';
-            // 半径60px (width 120 / 2)を引いて中央を合わせる
-            circle.style.left = (x - 60) + 'px';
-            circle.style.top = (y - 60) + 'px';
-            document.body.appendChild(circle);
+  document.getElementById('saveQuestionBtn').addEventListener('click', function() {
+    if (editingIndex >= 0) {
+      questions[editingIndex].choiceType = getCurrentChoiceType();
+    }
+    editModal.classList.remove('active');
+    renderQuestionList();
+  });
 
-            setTimeout(() => {
-                circle.remove();
-            }, 1000);
-        }
+  document.getElementById('deleteQuestionBtn').addEventListener('click', function() {
+    if (editingIndex >= 0 && confirm('この問題を削除しますか？')) {
+      questions.splice(editingIndex, 1);
+      editingIndex = -1;
+      editModal.classList.remove('active');
+      renderQuestionList();
+    }
+  });
 
+  document.getElementById('addQuestionBtn').addEventListener('click', function() {
+    const newQ = {
+      text: '',
+      image: null,
+      choiceType: 'none',
+      choices: [
+        { text: '', image: null },
+        { text: '', image: null },
+        { text: '', image: null },
+        { text: '', image: null }
+      ],
+      correct: 0
+    };
+    questions.push(newQ);
+    renderQuestionList();
+    openEditModal(questions.length - 1);
+  });
 
-        // ======== 編集モード ========
-        function createEditView() {
-            const container = document.createElement('div');
-            container.className = 'edit-container';
-            
-            let html = `
-                <div class="edit-header">
-                    <button class="btn" onclick="toggleMode()">◀ プレイ画面へ</button>
-                    <h2 style="margin:0;">問題の作成・編集</h2>
-                    <button class="btn primary" onclick="downloadHTML()">💾 保存 (HTMLダウンロード)</button>
-                </div>
-                <div class="edit-list">
-            `;
+  document.getElementById('backToQuizBtn').addEventListener('click', function() {
+    showQuizMode();
+  });
 
-            questions.forEach((q, qIndex) => {
-                html += `
-                    <div class="edit-card">
-                        <div class="card-header">
-                            <h3>問題 ${qIndex + 1}</h3>
-                            <div>
-                                <button class="btn danger btn-small" onclick="removeQuestion(${qIndex})">削除</button>
-                            </div>
-                        </div>
-                        
-                        <label class="edit-label">問題文 (HTML・ルビ利用可 ※ <code>&lt;ruby&gt;漢字&lt;rt&gt;かんじ&lt;/rt&gt;&lt;/ruby&gt;</code>)</label>
-                        <textarea class="edit-input" onchange="updateQText(${qIndex}, this.value)">${q.text}</textarea>
-                        
-                        <label class="edit-label">問題画像</label>
-                        <div class="file-wrapper">
-                            <input type="file" accept="image/*" onchange="handleImageUpload(event, ${qIndex}, -1)">
-                            ${q.image ? `
-                                <img src="${q.image}" class="preview-img">
-                                <button class="btn btn-small" style="margin-top:5px;" onclick="removeImage(${qIndex}, -1)">画像を削除</button>
-                            ` : ''}
-                        </div>
-                        
-                        <label class="edit-label">出題形式</label>
-                        <select class="edit-input" onchange="updateQType(${qIndex}, this.value)">
-                            <option value="2" ${q.type === '2' ? 'selected' : ''}>2択</option>
-                            <option value="4" ${q.type === '4' ? 'selected' : ''}>4択</option>
-                            <option value="0" ${q.type === '0' ? 'selected' : ''}>選択肢なし (提示のみ)</option>
-                        </select>
-                        
-                        <div style="display: ${q.type === '0' ? 'none' : 'block'}">
-                            <label class="edit-label">選択肢設定 (正解にチェック☑を入れてください)</label>
-                `;
-                
-                const optionCount = parseInt(q.type) || 0;
-                for (let i = 0; i < optionCount; i++) {
-                    const opt = q.options[i] || {text: '', image: ''};
-                    html += `
-                        <div class="option-edit-box ${q.answer === i ? 'correct-option' : ''}">
-                            <div style="margin-bottom: 10px;">
-                                <label style="cursor:pointer; font-weight:bold;">
-                                    <input type="radio" name="ans-${qIndex}" ${q.answer === i ? 'checked' : ''} onchange="updateAnswer(${qIndex}, ${i})">
-                                    選択肢 ${i + 1} ${q.answer === i ? '<span style="color:#4CAF50;">(正解)</span>' : ''}
-                                </label>
-                            </div>
-                            <input type="text" class="edit-input" style="margin-bottom:10px;" placeholder="選択肢のテキスト" value="${opt.text}" onchange="updateOptionText(${qIndex}, ${i}, this.value)">
-                            <input type="file" accept="image/*" onchange="handleImageUpload(event, ${qIndex}, ${i})">
-                            ${opt.image ? `
-                                <img src="${opt.image}" class="preview-img-small">
-                                <button class="btn btn-small" style="margin-top:5px;" onclick="removeImage(${qIndex}, ${i})">画像を削除</button>
-                            ` : ''}
-                        </div>
-                    `;
-                }
-                
-                html += `
-                        </div>
-                    </div>
-                `;
-            });
+  // ===== HTMLとして保存 =====
+  document.getElementById('saveHtmlBtn').addEventListener('click', function() {
+    saveAsHtml();
+  });
 
-            html += `
-                </div>
-                <div style="text-align:center; margin-top:20px; padding-bottom: 50px;">
-                    <button class="btn primary" style="padding:15px 30px; font-size:1.2rem;" onclick="addQuestion()">＋ 新しい問題を追加</button>
-                </div>
-            `;
-            
-            container.innerHTML = html;
-            return container;
-        }
+  // "</script>" を文字単位で組み立てて、HTMLパーサに誤認識されないようにする
+  const CLOSE_SCRIPT = '<' + '/' + 'script>';
+  const ESCAPED_CLOSE = '<\\/' + 'script>';
 
-        // --- 編集用アクション ---
-        window.updateQText = (qIdx, val) => { questions[qIdx].text = val; };
-        window.updateQType = (qIdx, val) => { 
-            questions[qIdx].type = val; 
-            const count = parseInt(val);
-            while (questions[qIdx].options.length < count) {
-                questions[qIdx].options.push({text:'', image:''});
-            }
-            if (questions[qIdx].answer >= count) questions[qIdx].answer = 0;
-            render(); 
-        };
-        window.updateAnswer = (qIdx, optIdx) => { questions[qIdx].answer = optIdx; render(); };
-        window.updateOptionText = (qIdx, optIdx, val) => { questions[qIdx].options[optIdx].text = val; };
-        
-        window.removeQuestion = (qIdx) => {
-            if (confirm('この問題を削除しますか？')) {
-                questions.splice(qIdx, 1);
-                render();
-            }
-        };
-        
-        window.addQuestion = () => {
-            questions.push({
-                text: '新しい問題', image: '', type: '2',
-                options: [{text:'選択肢1', image:''}, {text:'選択肢2', image:''}],
-                answer: 0
-            });
-            render();
-            setTimeout(() => {
-                const c = document.querySelector('.edit-container');
-                if (c) c.scrollTop = c.scrollHeight;
-            }, 10);
-        };
+  function saveAsHtml() {
+    const config = {
+      questions: questions,
+      shuffle: shuffleEnabled
+    };
+    let configJson = JSON.stringify(config);
+    configJson = configJson.split(CLOSE_SCRIPT).join(ESCAPED_CLOSE);
 
-        window.removeImage = (qIdx, optIdx) => {
-            if (optIdx === -1) {
-                questions[qIdx].image = '';
-            } else {
-                questions[qIdx].options[optIdx].image = '';
-            }
-            render();
-        };
+    const html = buildHtml(configJson);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'quiz.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  }
 
-        // --- 画像アップロードとリサイズ (Canvas経由でBase64化) ---
-        window.handleImageUpload = (e, qIdx, optIdx) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const max_size = 800; // iPad閲覧に十分なサイズに縮小
-                    let width = img.width;
-                    let height = img.height;
+  function buildHtml(configJson) {
+    const headHtml = document.head.innerHTML;
+    const bodyHtml = getStaticBodyHtml();
+    const scriptCode = getScriptCode();
 
-                    if (width > height) {
-                        if (width > max_size) {
-                            height *= max_size / width;
-                            width = max_size;
-                        }
-                    } else {
-                        if (height > max_size) {
-                            width *= max_size / height;
-                            height = max_size;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // 軽量化のためJPEG形式でデータURL化（透過が必要な場合はpngに変更してください）
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    
-                    if (optIdx === -1) {
-                        questions[qIdx].image = dataUrl;
-                    } else {
-                        questions[qIdx].options[optIdx].image = dataUrl;
-                    }
-                    render();
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        };
+    const fullHtml =
+      '<!DOCTYPE html>\n' +
+      '<html lang="ja">\n' +
+      '<head>\n' +
+      headHtml + '\n' +
+      '</head>\n' +
+      '<body>\n' +
+      bodyHtml + '\n' +
+      '<script id="quizConfig" type="application/json">' + configJson + CLOSE_SCRIPT + '\n' +
+      '<script>\n' + scriptCode + '\n' + CLOSE_SCRIPT + '\n' +
+      '</body>\n' +
+      '</html>';
+    return fullHtml;
+  }
 
-        // --- 最終HTMLのダウンロード ---
-        window.downloadHTML = () => {
-            // 現在のHTML要素をクローン
-            const clone = document.documentElement.cloneNode(true);
-            
-            // データ埋め込み用のscriptタグを更新
-            const dataScript = clone.querySelector('#app-data');
-            dataScript.textContent = JSON.stringify(questions);
-            
-            // 次回読み込み時に初期化処理を走らせるため、現在のUI状態を消去
-            const appDiv = clone.querySelector('#app');
-            if(appDiv) appDiv.innerHTML = '';
-            
-            // アニメーションの残骸などがあれば削除
-            const circles = clone.querySelectorAll('.correct-circle');
-            circles.forEach(c => c.remove());
-            
-            // ファイル名用の日付生成
-            const date = new Date();
-            const yyyy = date.getFullYear();
-            const mm = String(date.getMonth() + 1).padStart(2, '0');
-            const dd = String(date.getDate()).padStart(2, '0');
-            const fileName = `quiz_${yyyy}${mm}${dd}.html`;
-            
-            // 文字列としてHTMLを構築
-            const htmlStr = '<!DOCTYPE html>\n<html lang="ja">\n' + clone.innerHTML + '\n</html>';
-            
-            // Blob化してダウンロード処理
-            const blob = new Blob([htmlStr], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            alert(`「${fileName}」として保存しました。\nこのファイルをiPadへ送信し、ブラウザで開いて使用してください。`);
-        };
-    </script>
+  // 静的なbody HTML（編集状態をクリアした初期状態）
+  function getStaticBodyHtml() {
+    return [
+      '<div id="quizMode">',
+      '  <div class="question-counter" id="questionCounter"></div>',
+      '  <div id="quizContent"></div>',
+      '  <div class="nav-arrow left" id="prevArrow">◁</div>',
+      '  <div class="nav-arrow right" id="nextArrow">▷</div>',
+      '  <div class="gear-icon" id="gearIcon">⚙</div>',
+      '</div>',
+      '',
+      '<div id="editMode">',
+      '  <div class="edit-header">',
+      '    <h1>編集モード</h1>',
+      '    <div class="edit-buttons">',
+      '      <label class="shuffle-toggle" id="shuffleToggle">',
+      '        <input type="checkbox" id="shuffleCheckbox">',
+      '        🔀 シャッフル',
+      '      </label>',
+      '      <button class="btn btn-secondary" id="backToQuizBtn">出題に戻る</button>',
+      '      <button class="btn btn-success" id="saveHtmlBtn">HTMLとして保存</button>',
+      '    </div>',
+      '  </div>',
+      '  <div class="question-list" id="questionList"></div>',
+      '  <button class="btn btn-primary" id="addQuestionBtn">＋ 問題を追加</button>',
+      '</div>',
+      '',
+      '<div class="edit-modal" id="editModal">',
+      '  <div class="edit-modal-content">',
+      '    <div class="edit-modal-header">',
+      '      <h2 id="editModalTitle">問題を編集</h2>',
+      '      <button class="btn btn-secondary btn-sm" id="closeModalBtn">閉じる</button>',
+      '    </div>',
+      '    <div class="form-group">',
+      '      <label>問題文</label>',
+      '      <textarea id="editQuestionText" placeholder="問題文を入力"></textarea>',
+      '    </div>',
+      '    <div class="form-group">',
+      '      <label>問題画像（任意）</label>',
+      '      <div class="image-preview" id="editQuestionImagePreview"></div>',
+      '    </div>',
+      '    <div class="form-group">',
+      '      <label>選択肢の種類</label>',
+      '      <div class="radio-group">',
+      '        <label><input type="radio" name="choiceType" value="none"> なし</label>',
+      '        <label><input type="radio" name="choiceType" value="2"> 2択</label>',
+      '        <label><input type="radio" name="choiceType" value="4"> 4択</label>',
+      '      </div>',
+      '    </div>',
+      '    <div class="form-group" id="choicesEditWrapper" style="display:none;">',
+      '      <label>選択肢（◯のラジオで正解を指定）</label>',
+      '      <div class="choices-edit" id="choicesEdit"></div>',
+      '    </div>',
+      '    <div class="modal-actions">',
+      '      <button class="btn btn-danger" id="deleteQuestionBtn">この問題を削除</button>',
+      '      <button class="btn btn-primary" id="saveQuestionBtn">保存</button>',
+      '    </div>',
+      '  </div>',
+      '</div>'
+    ].join('\n');
+  }
+
+  // 自身のスクリプトを取得
+  function getScriptCode() {
+    // 自身のscriptタグを文字列で再構築するため、関数定義をすべて文字列化
+    return SCRIPT_SOURCE;
+  }
+
+  // スクリプトソースをグローバルに保持（保存用）
+  window.SCRIPT_SOURCE = '';
+
+  // 自身のscript要素を取得
+  const allScripts = document.getElementsByTagName('script');
+  for (let i = 0; i < allScripts.length; i++) {
+    const s = allScripts[i];
+    if (!s.id && s.textContent && s.textContent.indexOf('saveAsHtml') !== -1) {
+      window.SCRIPT_SOURCE = s.textContent;
+      break;
+    }
+  }
+
+  // SCRIPT_SOURCEをローカル変数として参照可能にする
+  const SCRIPT_SOURCE = window.SCRIPT_SOURCE;
+
+  document.body.addEventListener('touchstart', getAudioContext, { once: true });
+  document.body.addEventListener('click', getAudioContext, { once: true });
+
+})();
+</script>
+
 </body>
 </html>
