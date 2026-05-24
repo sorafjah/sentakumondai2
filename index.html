@@ -220,7 +220,7 @@
         // --- 状態管理 ---
         let questions = [];
         let currentIndex = 0;
-        let isEditMode = false;
+        let isEditMode = true; // 常に設定画面から開始
         let audioCtx;
 
         // --- 初期化 ---
@@ -232,10 +232,7 @@
                 questions = [];
             }
             
-            // データが空なら最初から編集モード
-            if (questions.length === 0) {
-                isEditMode = true;
-            }
+    // (常に設定画面から開始)
 
             // HTMLファイル読み込みイベント
             document.getElementById('load-html-input').addEventListener('change', loadHTMLFile);
