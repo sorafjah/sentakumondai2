@@ -61,7 +61,7 @@
         /* 設定（歯車） */
         .setting-btn {
             position: absolute;
-            bottom: 10px; left: 50%; transform: translateX(-50%);
+            top: 10px; left: 10px;
             background: transparent; border: none;
             color: var(--nav-color); font-size: 1.5rem;
             cursor: pointer; z-index: 10; padding: 10px;
@@ -394,21 +394,19 @@
         }
 
         function showCorrectAnimation(event) {
-            // タップ・クリックされた要素の中央座標を取得
+            // getBoundingClientRect はビューポート基準なので fixed 配置と一致する
             const rect = event.currentTarget.getBoundingClientRect();
-            const x = rect.left + rect.width / 2;
-            const y = rect.top + rect.height / 2;
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
 
+            const SIZE = 120;
             const circle = document.createElement('div');
             circle.className = 'correct-circle';
-            // 半径60px (width 120 / 2)を引いて中央を合わせる
-            circle.style.left = (x - 60) + 'px';
-            circle.style.top = (y - 60) + 'px';
+            circle.style.left = (cx - SIZE / 2) + 'px';
+            circle.style.top  = (cy - SIZE / 2) + 'px';
             document.body.appendChild(circle);
 
-            setTimeout(() => {
-                circle.remove();
-            }, 1000);
+            setTimeout(() => { circle.remove(); }, 1000);
         }
 
 
