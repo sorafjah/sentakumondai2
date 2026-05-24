@@ -189,6 +189,9 @@
         .btn.primary { background: var(--primary); color: white; font-weight: bold; }
         .btn.danger { background: var(--danger); color: white; }
         .btn-small { padding: 5px 10px; font-size: 0.8rem; }
+
+        /* 非表示のファイル入力 */
+        #load-html-input { display: none; }
     </style>
 </head>
 <body>
@@ -207,6 +210,9 @@
             }
         ]
     </script>
+
+    <!-- HTMLファイル読み込み用（非表示） -->
+    <input type="file" id="load-html-input" accept=".html">
 
     <div id="app"></div>
 
@@ -230,6 +236,10 @@
             if (questions.length === 0) {
                 isEditMode = true;
             }
+
+            // HTMLファイル読み込みイベント
+            document.getElementById('load-html-input').addEventListener('change', loadHTMLFile);
+
             render();
         };
 
@@ -411,7 +421,10 @@
                 <div class="edit-header">
                     <button class="btn" onclick="toggleMode()">◀ プレイ画面へ</button>
                     <h2 style="margin:0;">問題の作成・編集</h2>
-                    <button class="btn primary" onclick="downloadHTML()">💾 保存 (HTMLダウンロード)</button>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn" onclick="document.getElementById('load-html-input').click()">HTMLを読み込む</button>
+                        <button class="btn primary" onclick="downloadHTML()">HTMLで保存</button>
+                    </div>
                 </div>
                 <div class="edit-list">
             `;
@@ -529,6 +542,33 @@
             }
             render();
         };
+
+        // --- HTMLファイルの読み込み ---
+        function loadHTMLFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(event.target.result, 'text/html');
+                const dataScript = doc.getElementById('app-data');
+                if (!dataScript) {
+                    alert('このHTMLファイルには問題データが見つかりませんでした。');
+                    return;
+                }
+                try {
+                    const loaded = JSON.parse(dataScript.textContent);
+                    questions = loaded;
+                    render();
+                } catch(err) {
+                    alert('問題データの読み込みに失敗しました。');
+                }
+            };
+            reader.readAsText(file);
+            // 同じファイルを再選択できるようにリセット
+            e.target.value = '';
+        }
 
         // --- 画像アップロードとリサイズ (Canvas経由でBase64化) ---
         window.handleImageUpload = (e, qIdx, optIdx) => {
